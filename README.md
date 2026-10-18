@@ -8,6 +8,8 @@ Fiziksel kolu okur; dinlenme kaymasını otomatik telafi eder, filtreleri uygula
 
 > Tek dosya — kurulum gerekmez. ViGEmBus sürücüsü eksikse **uygulama kendisi indirip kurar**; size sadece "Evet" demek kalır.
 
+📦 **Her şey tek pakette:** [GamepadFixer-full.zip](https://github.com/menuaGG/gamepad-fixer/releases/latest/download/GamepadFixer-full.zip) — exe + kaynak kodlar + README + belgeler.
+
 ![Ana pencere](docs/main-window.png)
 
 ## Özellikler
