@@ -325,9 +325,12 @@ class FixerApp:
         self._bind_keys()
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
         self.root.report_callback_exception = self._on_tk_error
+        self._vigem_busy = False
+        self._vigem_auto_checked = False
         self.root.after(100, self._poll)
         self.root.after(150, self._test_tick)
         self.root.after(5000, self._system_theme_poll)
+        self.root.after(1600, self._vigem_auto_check)
         self._intro()
 
     # ------------------------------------------------------------------ arayuz
@@ -347,6 +350,9 @@ class FixerApp:
         m_tools.add_command(label="Titreşim Testi", command=self._rumble_test)
         m_tools.add_command(label="Ölü Bölge Testi",
                             command=self._dz_test_from_menu)
+        m_tools.add_separator()
+        m_tools.add_command(label="ViGEmBus sürücüsünü kur (gerekliyse)",
+                            command=self._vigem_menu)
         self._menus.append(m_tools)
         self._menu_ds["tools"] = m_tools
 
@@ -1047,6 +1053,8 @@ class FixerApp:
         self._log("   bilgisayar açılınca uygulama kendiliğinden başlar (simge durumunda).")
         self._log("7) 'Görünüm' menüsü (Ctrl+T): koyu / açık / sistem teması;")
         self._log("   Panel Düzeni: Sade / Detaylı. Sol taraftan sayfa seçilir.")
+        self._log("8) ViGEmBus sürücüsü eksikse uygulama ilk açılışta")
+        self._log("   otomatik indirip kurmayı önerir (Araçlar menüsünden de olur).")
         self._log("")
 
     # ------------------------------------------------------------------ log
@@ -1089,6 +1097,12 @@ class FixerApp:
                 item = self._queue.get_nowait()
                 if item is None:
                     self._on_fixer_done()
+                elif isinstance(item, tuple) and item and item[0] == "call":
+                    try:
+                        item[1]()
+                    except Exception:
+                        self._log("UYARI: ic gorev hatasi: "
+                                  + traceback.format_exc())
                 else:
                     self._handle_line(item)
         except queue.Empty:
@@ -1228,15 +1242,157 @@ class FixerApp:
                 self._log("(otomatik başlatma) Düzeltici başlatılamadı; "
                           "ayrıntı: günlük dosyası.")
             else:
-                messagebox.showerror(
-                    APP_TITLE,
-                    "Düzeltici başlatılamadı.\n\n"
-                    "Olası nedenler:\n"
-                    "  - ViGEmBus servisi durmuş olabilir\n"
-                    "  - vgamepad/sürücü sorunu\n\n"
-                    "Ayrıntı: günlük penceresi.")
+                try:
+                    import gamepad_fixer as gf
+                    drv = gf.vigem_driver_installed()
+                except Exception:
+                    drv = None
+                if drv is False:
+                    if messagebox.askyesno(
+                            APP_TITLE,
+                            "Düzeltici başlatılamadı ve ViGEmBus sürücüsü\n"
+                            "kurulu görünmüyor.\n\n"
+                            "Şimdi otomatik indirip kurmayı deneyeyim mi?"):
+                        self._vigem_install_start()
+                    else:
+                        self._log("ViGEmBus kurulumu atlandı "
+                                  "(elle: github.com/nefarius/ViGEmBus/releases)")
+                else:
+                    messagebox.showerror(
+                        APP_TITLE,
+                        "Düzeltici başlatılamadı.\n\n"
+                        "Olası nedenler:\n"
+                        "  - ViGEmBus servisi durmuş olabilir\n"
+                        "  - vgamepad/sürücü sorunu\n\n"
+                        "Ayrıntı: günlük penceresi.")
         elif not self.var_status.get().startswith("Durum: Durduruldu"):
             self.var_status.set("Durum: Durduruldu")
+
+    # ---------------------------------------------------------- ViGEmBus kurulum
+    def _vigem_auto_check(self):
+        if self._vigem_auto_checked:
+            return
+        self._vigem_auto_checked = True
+        self._vigem_prompt(manual=False)
+
+    def _vigem_menu(self):
+        self._vigem_prompt(manual=True)
+
+    def _vigem_prompt(self, manual):
+        try:
+            import gamepad_fixer as gf
+        except ImportError:
+            return
+        try:
+            st = gf.vigem_driver_installed()
+        except Exception:
+            st = None
+        if st is None:
+            if manual:
+                self._log("ViGEmBus durumu okunamadı; elle kur: "
+                          "github.com/nefarius/ViGEmBus/releases")
+            return
+        if st is True and not manual:
+            return
+        if st is True:
+            if not messagebox.askyesno(
+                    APP_TITLE,
+                    "ViGEmBus sürücüsü zaten kurulu görünüyor.\n\n"
+                    "Yine de yeniden kurmak (güncellemek) ister misin?"):
+                return
+        else:
+            if not messagebox.askyesno(
+                    APP_TITLE,
+                    "Sanal kol oluşturmak için gereken ViGEmBus sürücüsü\n"
+                    "kurulu görünmüyor.\n\n"
+                    "Şimdi otomatik indirip kurmayı deneyeyim mi?\n"
+                    "(İnternet gerekir; Windows yönetici izni soracaktır.)"):
+                self._log("ViGEmBus kurulumu atlandı "
+                          "(elle: github.com/nefarius/ViGEmBus/releases)")
+                return
+        self._vigem_install_start()
+
+    def _vigem_install_start(self):
+        if self._vigem_busy:
+            self._log("ViGEmBus kurulumu zaten sürüyor, bekleyin...")
+            return
+        self._vigem_busy = True
+        self._log("ViGEmBus: son sürüm sorgulanıyor...")
+        threading.Thread(target=self._vigem_install_worker,
+                         daemon=True).start()
+
+    def _vigem_install_worker(self):
+        try:
+            import gamepad_fixer as gf
+            url = gf.vigem_setup_url()
+            if not url:
+                raise RuntimeError("indirme adresi bulunamadı")
+            fname = url.rsplit("/", 1)[-1]
+            self._queue.put("ViGEmBus: indiriliyor (%s)" % fname)
+            dest = os.path.join(tempfile.gettempdir(), "GamepadFixer", fname)
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
+            state = {"last": 0}
+
+            def prog(frac):
+                pct = int(frac * 100)
+                if pct >= state["last"] + 25:
+                    state["last"] = pct - (pct % 25)
+                    self._queue.put("ViGEmBus: indiriliyor %%%d" % pct)
+
+            gf.download_file(url, dest, progress=prog)
+            self._queue.put("ViGEmBus: indirildi; kurulum başlatılıyor "
+                            "(yönetici izni istenecek)...")
+            ok, msg = gf.run_installer_elevated(
+                dest, params="/exenoui /qn /norestart")
+            if not ok:
+                self._queue.put("ViGEmBus: " + msg)
+            else:
+                time.sleep(1.5)
+                if gf.vigem_driver_installed() is False:
+                    self._queue.put("ViGEmBus: sessiz kurulum sonuçlanmadı; "
+                                    "kurulum penceresi açılıyor "
+                                    "(İleri/Kur ile tamamlayın)...")
+                    ok, msg = gf.run_installer_elevated(dest)
+                    if not ok:
+                        self._queue.put("ViGEmBus: " + msg)
+                    time.sleep(1.5)
+            st = gf.vigem_driver_installed()
+            if st is False:
+                time.sleep(2.0)
+                st = gf.vigem_driver_installed()
+            err = None if ok else msg
+            self._queue.put(("call", lambda: self._vigem_finish(st, err)))
+        except Exception as exc:
+            self._queue.put(("call",
+                             lambda e=exc: self._vigem_finish(
+                                 None, str(e) or repr(e))))
+
+    def _vigem_finish(self, installed, err):
+        self._vigem_busy = False
+        if err:
+            self._log("ViGEmBus kurulum hatası: %s" % err)
+            messagebox.showwarning(
+                APP_TITLE,
+                "ViGEmBus otomatik kurulamadı:\n%s\n\n"
+                "Araçlar menüsünden tekrar deneyebilirsin.\n"
+                "Elle kurmak için: github.com/nefarius/ViGEmBus/releases"
+                % err)
+            return
+        if installed:
+            self._log("ViGEmBus sürücüsü kuruldu ✓ "
+                      "(artık Başlat ile kullanabilirsin)")
+            messagebox.showinfo(
+                APP_TITLE,
+                "ViGEmBus kuruldu!\n\nArtık 'Başlat' (F5) ile "
+                "kullanmaya başlayabilirsin.")
+        else:
+            self._log("ViGEmBus: kurulum tamamlanmamış görünüyor.")
+            messagebox.showwarning(
+                APP_TITLE,
+                "Kurulum tamamlanmamış görünüyor (yönetici izni verilmemiş "
+                "ya da kurulum iptal edilmiş olabilir).\n\n"
+                "Araçlar menüsünden tekrar deneyebilir ya da elle "
+                "kurabilirsin:\ngithub.com/nefarius/ViGEmBus/releases")
 
     # ------------------------------------------------------------------ test ekrani
     def _build_test_tab(self, parent):
@@ -2372,6 +2528,8 @@ class FixerApp:
             "4) Durdurmak için: 'Durdur' (F6) ya da pencereyi kapat.\n\n"
             "İlk kolun SANAL olmasını istersen (oyun otomatik onu alsın):\n"
             "  Kolu kapat -> Başlat -> 'Fiziksel kol bekleniyor...' yazınca kolu aç.\n\n"
+            "ViGEmBus sürücüsü eksikse uygulama, ilk açılışta otomatik\n"
+            "indirip kurmayı önerir (Araçlar menüsünden de kurulabilir).\n\n"
             "Ayarlar menüsünden ölü bölge, dairesellik ve diğer filtre değerlerini\n"
             "değiştirebilirsin (bir sonraki Başlat'ta geçerli olur).\n\n"
             "Görünüm menüsü (veya Ctrl+T) ile koyu / açık tema seçebilirsin.")
@@ -2386,6 +2544,7 @@ class FixerApp:
             "  • yumuşatma + snap\n"
             "  • canlı düğme/tetik test paneli, titreşim gücü ayarı\n"
             "  • pil göstergesi, Windows ile otomatik başlatma\n"
+            "  • eksik ViGEmBus sürücüsünü otomatik indirip kurma\n"
             "  • koyu/açık tema (Görünüm menüsü)\n\n"
             "Düzeltilmiş veriyi sanal Xbox 360 kolu (ViGEmBus, ürün 028e)\n"
             "olarak sisteme sunar; titreşim fiziksel kola aktarılır."

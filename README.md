@@ -4,11 +4,16 @@ Xbox kontrolcülerindeki **analog çubuk kayması (drift)** ve **ölü bölge (d
 
 Fiziksel kolu okur; dinlenme kaymasını otomatik telafi eder, filtreleri uygular ve sonucu **sanal bir Xbox 360 kolu** olarak sunar. Oyunlar ve test siteleri düzeltilmiş değerleri görür.
 
+### ⬇️ [**GamepadFixer.exe'yi indir**](https://github.com/menuaGG/gamepad-fixer/releases/latest/download/GamepadFixer.exe)
+
+> Tek dosya — kurulum gerekmez. ViGEmBus sürücüsü eksikse **uygulama kendisi indirip kurar**; size sadece "Evet" demek kalır.
+
 ![Ana pencere](docs/main-window.png)
 
 ## Özellikler
 
 - **Otomatik kayma düzeltme**: Kol başlarken ~1,3 sn'lik kalibrasyonla dinlenme kayması ölçülür ve sürekli telafi edilir. Elini çektiğinde çubuk oyunda **0** okunur.
+- **Otomatik sürücü kurulumu**: ViGEmBus sürücüsü eksikse uygulama ilk açılışta otomatik indirip kurmayı önerir; tek tıkla halledilir (Araçlar menüsünden istendiğinde tekrar çalıştırılabilir).
 - **Ölü Bölge Testi**: Kolları serbest bırakıp tek düğmeye basmanız yeterli. Araç 3 sn ölçer, ölçülen kaymayı **tamamen kapatan** ölü bölge değerini önerir; "Uygula ve Kaydet" dediğinizde ayarı yazıp gerekirse kol köprüsünü kendisi yeniden başlatır.
 
   ![Ölü Bölge Testi](docs/deadzone-test.png)
@@ -30,9 +35,11 @@ Fiziksel kolu okur; dinlenme kaymasını otomatik telafi eder, filtreleri uygula
 
 ## Kurulum
 
-1. **[ViGEmBus sürücüsünü](https://github.com/nefarius/ViGEmBus/releases)** bir kez kurun (sanal kol için gerekli).
-2. **[Son sürümü indirin](../../releases/latest)** → `GamepadFixer.exe`
-3. Çalıştırın. SmartScreen uyarısı çıkarsa: **Daha fazla bilgi → Yine de çalıştır** (exe imzasızdır).
+1. **[GamepadFixer.exe'yi indirin](https://github.com/menuaGG/gamepad-fixer/releases/latest/download/GamepadFixer.exe)** — tek dosya.
+2. Çalıştırın. SmartScreen uyarısı çıkarsa: **Daha fazla bilgi → Yine de çalıştır** (exe imzasızdır).
+3. ViGEmBus sürücüsü kurulu değilse uygulama **ilk açılışta otomatik indirip kurmayı önerir**:
+   "Evet" deyin → Windows yönetici izni verin → gerisini uygulama halleder. İsterseniz
+   **Araçlar → "ViGEmBus sürücüsünü kur"** menüsünden de çalıştırabilirsiniz.
 4. Kolu bağlayın → **Başlat (F5)**. İlk saniyelerde kolu serbest bırakın (merkez kalibrasyonu).
 5. Oyun/sitede listede iki kol görünür; **Xbox 360 Controller (sanal)** olanı seçin.
 
@@ -68,6 +75,8 @@ python -m PyInstaller --noconfirm --clean --onefile --windowed --name GamepadFix
   O fiziksel kolun kendisidir; ham sinyali değiştirilemez. Düzeltilmiş hâli sanal koldur (028e).
 - **Windows "bilinmeyen yayıncı" uyarısı veriyor.**
   Exe kod imzalı değil; "Yine de çalıştır" ile devam edebilirsiniz.
+- **Sürücü otomatik kurulmazsa?**
+  **Araçlar → "ViGEmBus sürücüsünü kur"** ile tekrar deneyin; sessiz kurulum çalışmazsa uygulama kurulum penceresini kendisi açar. Alternatif: [ViGEmBus sürümleri](https://github.com/nefarius/ViGEmBus/releases).
 - **Bluetooth Xbox kolu çalışır mı?**
   Evet — kol XInput olarak göründüğü sürece (USB, Bluetooth veya Xbox Wireless Adaptör) çalışır.
 
