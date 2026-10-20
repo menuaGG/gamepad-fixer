@@ -11,14 +11,16 @@ Fiziksel kolu okur; dinlenme kaymasını otomatik telafi eder, filtreleri uygula
 📦 **Her şey tek pakette:** [GamepadFixer-full.zip](https://github.com/menuaGG/gamepad-fixer/releases/latest/download/GamepadFixer-full.zip) — exe + kaynak kodlar + README + belgeler.
 
 > [!WARNING]
-> **Eski/bozuk ViGEmBus sürümü (1.17.x, 1.21.x vb.) kuruluysa:** v1.10 öncesi sürümler sürücüyü doğrudan güncellemeye çalışıyordu; bazı sistemlerde bu sırada **mavi ekran (0x1000007E)** görülebiliyordu. **v1.10+** eski sürücüyü otomatik tespit eder, üzerine kurulum **yapmaz**; önce güvenle temizler, yeniden başlatma ister ve sonra güncel sürümü (1.22.0) kurar. Mavi ekran aldıysanız aşağıdaki **"Mavi ekran / takılı kalan sürücü"** bölümüne bakın.
+> **Eski/bozuk ViGEmBus sürümleri (özellikle 2020 tarihli 1.17.333.0 gibi) kuruluysa:** v1.10 öncesi sürümler sürücüyü doğrudan güncellemeye çalışıyordu; bazı sistemlerde bu sırada **mavi ekran (0x1000007E)** görülebiliyordu. **v1.10.1+** eski sürücüyü otomatik tespit eder, üzerine kurulum **yapmaz**; önce güvenle temizler, yeniden başlatma ister ve sonra güncel ViGEmBus paketini (1.22.0) kurar. Mavi ekran aldıysanız aşağıdaki **"Mavi ekran / takılı kalan sürücü"** bölümüne bakın.
+>
+> **Not:** Güncel ViGEmBus 1.22.0 paketinin içindeki sürücü dosyası **1.21.442.0**'dır; bu normaldir.
 
 ![Ana pencere](docs/main-window.png)
 
 ## Özellikler
 
 - **Otomatik kayma düzeltme**: Kol başlarken ~1,3 sn'lik kalibrasyonla dinlenme kayması ölçülür ve sürekli telafi edilir. Elini çektiğinde çubuk oyunda **0** okunur.
-- **Güvenli sürücü kurulumu**: ViGEmBus sürücüsü eksikse uygulama ilk açılışta otomatik indirip kurmayı önerir. **Eski/bozuk bir sürüm (ör. 1.17.x) varsa üzerine kurmaz**; önce temizler, yeniden başlatma ister, sonra güncel sürümü (1.22.0+) kurar. Araçlar menüsünden "ViGEmBus'u onar" ile de çalıştırılabilir.
+- **Güvenli sürücü kurulumu**: ViGEmBus sürücüsü eksikse uygulama ilk açılışta otomatik indirip kurmayı önerir. **Eski/bozuk bir sürüm (ör. 1.17.333.0) varsa üzerine kurmaz**; önce temizler, yeniden başlatma ister, sonra güncel ViGEmBus paketini (1.22.0+) kurar. Araçlar menüsünden "ViGEmBus'u onar" ile de çalıştırılabilir.
 - **Ölü Bölge Testi**: Kolları serbest bırakıp tek düğmeye basmanız yeterli. Araç 3 sn ölçer, ölçülen kaymayı **tamamen kapatan** ölü bölge değerini önerir; "Uygula ve Kaydet" dediğinizde ayarı yazıp gerekirse kol köprüsünü kendisi yeniden başlatır.
 
   ![Ölü Bölge Testi](docs/deadzone-test.png)
@@ -110,8 +112,9 @@ Eski ViGEmBus sürücüleri (özellikle 2020 tarihli **1.17.333.0**) güncel Win
 
 ## Sürüm notları
 
+- **v1.10.1** — 1.22.0 paketindeki resmi sürücü dosyasının (1.21.442.0) yanlışlıkla "eski" sayılması düzeltildi. Güncel sürücüyle gereksiz onarım/uyarı çıkmaz.
 - **v1.10** — Eski/bozuk ViGEmBus tespiti (sürüm + dosya kontrolü), güvenli temizlik + yeniden başlatma akışı, "ViGEmBus'u onar" menüsü, kurulum öncesi sürüm doğrulama, mavi ekran uyarıları. Sürücü yönetimi `vgamepad`'den ayrıldı: ViGEmBus hiç kurulu olmasa bile uygulama açılıp kurulum önerebilir.
-- **v1.9 ve öncesi** — Bu sürümlerde eski ViGEmBus üzerine kurulum koruması yoktu; lütfen v1.10+ kullanın.
+- **v1.9 ve öncesi** — Bu sürümlerde eski ViGEmBus üzerine kurulum koruması yoktu; lütfen v1.10.1+ kullanın.
 
 ## Teşekkürler
 

@@ -49,7 +49,7 @@ if BASEDIR not in sys.path:
     sys.path.insert(0, BASEDIR)
 
 APP_TITLE = "Gamepad Fixer"
-APP_VERSION = "1.10"
+APP_VERSION = "1.10.1"
 CREATE_NO_WINDOW = 0x08000000
 
 CONFIG_PATH = os.path.join(
@@ -1314,7 +1314,8 @@ class FixerApp:
                 "ViGEmBus onarımı\n\n"
                 "Mevcut sürüm: %s\n\n"
                 "Eski sürücü tamamen temizlenecek, bilgisayar yeniden "
-                "başlatılacak ve güncel sürüm (1.22.0) kurulacak.\n\n"
+                "başlatılacak ve güncel ViGEmBus paketi (1.22.0) "
+                "kurulacak.\n\n"
                 "Devam edilsin mi?" % ver):
             return
         self._vigem_repair_start()
@@ -1408,7 +1409,7 @@ class FixerApp:
                 APP_TITLE,
                 "Eski ViGEmBus sürücüsü temizlendi. ✅\n\n"
                 "Şimdi bilgisayarın yeniden başlatılması gerekiyor. "
-                "Açılışta güncel sürücü (1.22.0) kurulacak.\n\n"
+                "Açılışta güncel ViGEmBus paketi (1.22.0) kurulacak.\n\n"
                 "Şimdi yeniden başlatayım mı?"):
             self._restart_computer()
 
@@ -1447,7 +1448,8 @@ class FixerApp:
                 if messagebox.askyesno(
                         APP_TITLE,
                         "ViGEmBus temizliği tamamlandı.\n\n"
-                        "Güncel sürücüyü (1.22.0) şimdi kurayım mı?\n"
+                        "Güncel ViGEmBus paketini (1.22.0) şimdi "
+                        "kurayım mı?\n"
                         "(İnternet gerekir; Windows yönetici izni "
                         "soracaktır.)"):
                     self._vigem_install_start()
@@ -1466,7 +1468,7 @@ class FixerApp:
                     "Güvenli onarım:\n"
                     "  1) Eski sürücü temizlenir\n"
                     "  2) Bilgisayar yeniden başlatılır\n"
-                    "  3) Güncel ViGEmBus (1.22.0) kurulur\n\n"
+                    "  3) Güncel ViGEmBus paketi (1.22.0) kurulur\n\n"
                     "Onarımı şimdi başlatayım mı?" % ver):
                 self._vigem_repair_start()
             else:
@@ -1598,10 +1600,10 @@ class FixerApp:
         ver = state.get("version_text") or "bilinmiyor"
         if installed:
             self._clear_repair_stage()
-            self._log("ViGEmBus sürücüsü kuruldu ✓ (sürüm %s)" % ver)
+            self._log("ViGEmBus sürücüsü kuruldu ✓ (sürücü sürümü %s)" % ver)
             messagebox.showinfo(
                 APP_TITLE,
-                "ViGEmBus kuruldu! (sürüm %s)\n\n"
+                "ViGEmBus kuruldu! (sürücü sürümü %s)\n\n"
                 "Artık 'Başlat' (F5) ile kullanmaya başlayabilirsin.\n"
                 "Sanal kol görünmüyorsa bilgisayarı bir kez yeniden "
                 "başlat." % ver)

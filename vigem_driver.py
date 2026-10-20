@@ -16,7 +16,8 @@ import time
 
 VIGEM_SERVICE_KEY = r"SYSTEM\CurrentControlSet\Services\ViGEmBus"
 VIGEM_API_LATEST = "https://api.github.com/repos/nefarius/ViGEmBus/releases/latest"
-VIGEM_MIN_VERSION = (1, 22, 0)
+# 1.22.0 paketinin içindeki resmi sürücü dosyası 1.21.442.0'dır.
+VIGEM_MIN_VERSION = (1, 21, 442)
 
 
 def vigem_driver_installed():
