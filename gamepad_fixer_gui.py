@@ -40,7 +40,8 @@ import threading
 import time
 import tkinter as tk
 import traceback
-from tkinter import messagebox, scrolledtext, ttk
+import webbrowser
+from tkinter import messagebox, ttk
 
 import vigem_driver as vd
 
@@ -49,7 +50,7 @@ if BASEDIR not in sys.path:
     sys.path.insert(0, BASEDIR)
 
 APP_TITLE = "Gamepad Fixer"
-APP_VERSION = "1.10.1"
+APP_VERSION = "1.11.0"
 CREATE_NO_WINDOW = 0x08000000
 
 CONFIG_PATH = os.path.join(
@@ -72,7 +73,7 @@ DEFAULTS = {
     "panel_flip_y": True,
     "no_rumble": False,
     "rumble_scale": 100,
-    "theme": "dark",
+    "theme": "system",
     "panel_mode": "detayli",
     "vigem_repair_stage": "",
     "vigem_cleanup_boot": 0,
@@ -83,67 +84,73 @@ DEFAULTS = {
 THEMES = {
     "dark": {
         "label": "Koyu",
-        "bg": "#1c1e23",
-        "panel": "#25272e",
-        "panel2": "#2b2e36",
-        "fg": "#e7e9ee",
-        "muted": "#9aa3af",
-        "accent": "#5aa2ff",
-        "border": "#3b3f49",
-        "entry_bg": "#15171c",
-        "log_bg": "#14161b",
-        "log_fg": "#d3d9e0",
-        "sel_bg": "#2e4a72",
-        "canvas_bg": "#191b21",
-        "grid": "#31353e",
-        "axis": "#4a505c",
-        "trail": "#7c8492",
-        "dot": "#5aa2ff",
-        "btn_face": "#2b2e36",
-        "btn_fg": "#e7e9ee",
-        "btn_press": "#35c15c",
+        "bg": "#202020",
+        "panel": "#272727",
+        "panel2": "#2d2d2d",
+        "fg": "#ffffff",
+        "muted": "#a0a0a0",
+        "accent": "#60cdff",
+        "accent_hover": "#7ad7ff",
+        "accent_pressed": "#4cc2f1",
+        "border": "#3a3a3a",
+        "entry_bg": "#2d2d2d",
+        "log_bg": "#1b1b1b",
+        "log_fg": "#e6e6e6",
+        "sel_bg": "#2d3f4f",
+        "canvas_bg": "#1e1e1e",
+        "grid": "#3a3a3a",
+        "axis": "#5a5a5a",
+        "trail": "#8a8a8a",
+        "dot": "#60cdff",
+        "btn_face": "#2d2d2d",
+        "btn_fg": "#ffffff",
+        "btn_press": "#2f7d32",
         "btn_press_fg": "#ffffff",
-        "ok": "#57d178",
-        "err": "#ff7b72",
-        "menu_bg": "#25272e",
-        "menu_fg": "#e7e9ee",
-        "card": "#22242b",
-        "side_bg": "#16171c",
-        "hover": "#2c2f37",
-        "divider": "#33363f",
-        "green": "#3ecf6a",
+        "ok": "#6ccb5f",
+        "err": "#ff99a4",
+        "menu_bg": "#2b2b2b",
+        "menu_fg": "#ffffff",
+        "card": "#272727",
+        "side_bg": "#1f1f1f",
+        "hover": "#333333",
+        "divider": "#3a3a3a",
+        "green": "#6ccb5f",
+        "focus": "#60cdff",
     },
     "light": {
         "label": "Açık",
-        "bg": "#f2f4f8",
+        "bg": "#f3f3f3",
         "panel": "#ffffff",
-        "panel2": "#e9edf2",
-        "fg": "#23282f",
-        "muted": "#5d6673",
-        "accent": "#0b63ce",
-        "border": "#d3d9e1",
+        "panel2": "#f9f9f9",
+        "fg": "#1b1b1b",
+        "muted": "#616161",
+        "accent": "#0067c0",
+        "accent_hover": "#1975c5",
+        "accent_pressed": "#005ba1",
+        "border": "#e1e1e1",
         "entry_bg": "#ffffff",
         "log_bg": "#ffffff",
-        "log_fg": "#2b3138",
-        "sel_bg": "#cfe2ff",
-        "canvas_bg": "#fbfcfe",
-        "grid": "#d9dee5",
-        "axis": "#aab2bd",
-        "trail": "#98a2ae",
-        "dot": "#1f6feb",
-        "btn_face": "#e9edf2",
-        "btn_fg": "#23282f",
-        "btn_press": "#2fbe5e",
-        "btn_press_fg": "#ffffff",
-        "ok": "#1a7f37",
-        "err": "#c62828",
+        "log_fg": "#1b1b1b",
+        "sel_bg": "#e8f1fb",
+        "canvas_bg": "#fbfbfb",
+        "grid": "#e5e5e5",
+        "axis": "#b3b3b3",
+        "trail": "#9a9a9a",
+        "dot": "#0067c0",
+        "btn_face": "#ffffff",
+        "btn_fg": "#1b1b1b",
+        "btn_press": "#dff6dd",
+        "btn_press_fg": "#0f7b0f",
+        "ok": "#0f7b0f",
+        "err": "#c42b1c",
         "menu_bg": "#ffffff",
-        "menu_fg": "#23282f",
+        "menu_fg": "#1b1b1b",
         "card": "#ffffff",
-        "side_bg": "#e9edf3",
-        "hover": "#dde3ec",
-        "divider": "#d7dce4",
-        "green": "#2fbe5e",
+        "side_bg": "#f7f7f7",
+        "hover": "#ebebeb",
+        "divider": "#e5e5e5",
+        "green": "#0f7b0f",
+        "focus": "#0067c0",
     },
 }
 
@@ -156,7 +163,16 @@ THEME_KINDS = {
     "card_dot": {"bg": "card", "fg": "green"},
     "card_cv": {"bg": "card"},
     "divider_line": {"bg": "divider"},
+    "bg": {"bg": "bg"},
     "side": {"bg": "side_bg"},
+    "side_title": {"bg": "side_bg", "fg": "fg"},
+    "side_muted": {"bg": "side_bg", "fg": "muted"},
+    "stat_card": {"bg": "card", "highlightbackground": "border"},
+    "page_title": {"bg": "bg", "fg": "fg"},
+    "page_sub": {"bg": "bg", "fg": "muted"},
+    "log_card": {"bg": "card", "highlightbackground": "border"},
+    "log_head": {"bg": "card", "fg": "fg"},
+    "log_panel": {"bg": "log_bg"},
 }
 
 
@@ -275,9 +291,9 @@ class FixerApp:
         self._batt_t = 0.0
         self._batt_raw_logged = False
         self._autostart_was = self._autostart_enabled()
-        self._theme_choice = str(self.cfg.get("theme", "dark")).lower()
+        self._theme_choice = str(self.cfg.get("theme", "system")).lower()
         if self._theme_choice not in ("dark", "light", "system"):
-            self._theme_choice = "dark"
+            self._theme_choice = "system"
         self._theme_name = self._resolve_theme(self._theme_choice)
         self._colors = dict(THEMES[self._theme_name])
         self._panel_mode = str(self.cfg.get("panel_mode", "detayli")).lower()
@@ -320,9 +336,9 @@ class FixerApp:
         self._log_file("panel duzeni: %s" % self._panel_mode)
 
         self.root = tk.Tk()
-        self.root.title("%s v%s" % (APP_TITLE, APP_VERSION))
-        self.root.geometry("1140x720")
-        self.root.minsize(1060, 620)
+        self.root.title(APP_TITLE)
+        self.root.geometry("1180x760")
+        self.root.minsize(1080, 640)
         self.root.configure(bg=self._colors["bg"])
         try:
             self.root.iconbitmap(resource_path(os.path.join("assets", "gamepad.ico")))
@@ -349,38 +365,51 @@ class FixerApp:
         self._menus = []
         self._menu_ds = {}
 
-        m_app = tk.Menu(self.root, tearoff=0)
+        menubar = tk.Menu(self.root)
+        self._menubar = menubar
+
+        m_app = tk.Menu(menubar, tearoff=0)
         m_app.add_command(label="Başlat", accelerator="F5", command=self._start)
         m_app.add_command(label="Durdur", accelerator="F6", command=self._stop)
         m_app.add_separator()
+        m_app.add_command(label="Gelişmiş Ayarlar...", accelerator="Ctrl+,",
+                          command=self._open_settings)
+        m_app.add_command(label="Varsayılanlara Dön",
+                          command=self._reset_settings)
+        m_app.add_separator()
         m_app.add_command(label="Çıkış", command=self._on_close)
-        self._menus.append(m_app)
+        menubar.add_cascade(label="Dosya", menu=m_app)
         self._menu_ds["app"] = m_app
+        self._menus.append(m_app)
 
-        m_tools = tk.Menu(self.root, tearoff=0)
-        m_tools.add_command(label="Titreşim Testi", command=self._rumble_test)
+        m_tools = tk.Menu(menubar, tearoff=0)
         m_tools.add_command(label="Ölü Bölge Testi",
                             command=self._dz_test_from_menu)
+        m_tools.add_command(label="Titreşim Testi", command=self._rumble_test)
         m_tools.add_separator()
         m_tools.add_command(label="ViGEmBus'u onar (eski sürümü temizle)",
                             command=self._vigem_repair_menu)
         m_tools.add_command(label="ViGEmBus sürücüsünü kur / güncelle",
                             command=self._vigem_menu)
-        self._menus.append(m_tools)
+        m_tools.add_separator()
+        m_tools.add_command(label="Günlük klasörünü aç",
+                            command=self._open_log_folder)
+        menubar.add_cascade(label="Araçlar", menu=m_tools)
         self._menu_ds["tools"] = m_tools
+        self._menus.append(m_tools)
 
-        m_view = tk.Menu(self.root, tearoff=0)
+        m_view = tk.Menu(menubar, tearoff=0)
         self._theme_var = tk.StringVar(value=self._theme_choice)
         m_theme = tk.Menu(m_view, tearoff=0)
-        m_theme.add_radiobutton(label="☾  Koyu Tema (Varsayılan)",
-                                variable=self._theme_var, value="dark",
-                                command=lambda: self._set_theme("dark"))
-        m_theme.add_radiobutton(label="☀  Açık Tema",
-                                variable=self._theme_var, value="light",
-                                command=lambda: self._set_theme("light"))
-        m_theme.add_radiobutton(label="▣  Sistem Varsayılanı",
+        m_theme.add_radiobutton(label="Sistem varsayılanı",
                                 variable=self._theme_var, value="system",
                                 command=lambda: self._set_theme("system"))
+        m_theme.add_radiobutton(label="Açık",
+                                variable=self._theme_var, value="light",
+                                command=lambda: self._set_theme("light"))
+        m_theme.add_radiobutton(label="Koyu",
+                                variable=self._theme_var, value="dark",
+                                command=lambda: self._set_theme("dark"))
         m_view.add_cascade(label="Tema", menu=m_theme)
         self._menus.append(m_theme)
 
@@ -392,82 +421,49 @@ class FixerApp:
         m_panel.add_radiobutton(label="Detaylı", variable=self._panel_var,
                                 value="detayli",
                                 command=lambda: self._set_panel_mode("detayli"))
-        m_view.add_cascade(label="Panel Düzeni", menu=m_panel)
-        self._menus.append(m_panel)
-
+        m_view.add_cascade(label="Panel düzeni", menu=m_panel)
         m_view.add_separator()
-        m_view.add_command(label="Temayı değiştir (Ctrl+T)",
+        m_view.add_command(label="Temayı değiştir", accelerator="Ctrl+T",
                            command=self._theme_toggle)
-        self._menus.append(m_view)
+        menubar.add_cascade(label="Görünüm", menu=m_view)
         self._menu_ds["view"] = m_view
+        self._menus.extend([m_panel, m_view])
 
-        m_set = tk.Menu(self.root, tearoff=0)
-        m_set.add_command(label="Filtre Ayarları...", command=self._open_settings)
-        m_set.add_command(label="Varsayılanlara Dön", command=self._reset_settings)
-        self._menus.append(m_set)
-        self._menu_ds["set"] = m_set
-
-        m_help = tk.Menu(self.root, tearoff=0)
-        m_help.add_command(label="Nasıl Kullanılır?", command=self._help)
+        m_help = tk.Menu(menubar, tearoff=0)
+        m_help.add_command(label="Nasıl kullanılır?", command=self._help)
+        m_help.add_command(label="GitHub sayfası", command=self._open_github)
+        m_help.add_separator()
         m_help.add_command(label="Hakkında", command=self._about)
-        self._menus.append(m_help)
+        menubar.add_cascade(label="Yardım", menu=m_help)
         self._menu_ds["help"] = m_help
+        self._menus.append(m_help)
+
+        self.root.config(menu=menubar)
+        self._menus.append(menubar)
 
     def _build_widgets(self):
         c = self._colors
         self._theme_widgets = []
         self._menubtn_pairs = []
 
-        # --- ust serit: kart gorunumlu menu dugmeleri ---
-        topbar = tk.Frame(self.root, bg=c["bg"])
-        topbar.pack(fill="x", padx=10, pady=(8, 0))
-
-        def menubtn(text, menu):
-            f = tk.Frame(topbar, bg=c["card"], cursor="hand2",
-                         highlightthickness=1, highlightbackground=c["divider"])
-            lbl = tk.Label(f, text=text, bg=c["card"], fg=c["fg"],
-                           font=("Segoe UI", 10), padx=12, pady=6,
-                           cursor="hand2")
-            lbl.pack()
-            self._menubtn_pairs.append((f, lbl))
-
-            def enter(_e, f=f, lbl=lbl):
-                f.configure(bg=self._colors["hover"])
-                lbl.configure(bg=self._colors["hover"])
-
-            def leave(_e, f=f, lbl=lbl):
-                f.configure(bg=self._colors["card"])
-                lbl.configure(bg=self._colors["card"])
-
-            for w in (f, lbl):
-                w.bind("<Button-1>",
-                       lambda e, m=menu, ww=f: self._popup_menu(m, ww))
-                w.bind("<Enter>", enter)
-                w.bind("<Leave>", leave)
-            return f
-
-        menubtn("✎  Düzeltici", self._menu_ds["app"]).pack(side="left", padx=(0, 6))
-        menubtn("⚒  Araçlar", self._menu_ds["tools"]).pack(side="left", padx=(0, 6))
-        menubtn("◐  Görünüm", self._menu_ds["view"]).pack(side="left", padx=(0, 6))
-        menubtn("⚙  Ayarlar", self._menu_ds["set"]).pack(side="left", padx=(0, 6))
-        menubtn("❓  Yardım", self._menu_ds["help"]).pack(side="left")
-
-        # --- aksiyon seridi: Baslat / Durdur + otomatik baslat ---
+        # --- komut seridi: Baslat / Durdur + otomatik baslat ---
         act = tk.Frame(self.root, bg=c["bg"])
-        act.pack(fill="x", padx=10, pady=(8, 0))
-        self.btn_start = ttk.Button(act, text="▶  Başlat (F5)",
+        act.pack(fill="x", padx=14, pady=(10, 0))
+        self._reg(act, "bg")
+        self._autostart_var = tk.BooleanVar(value=self._autostart_was)
+        self.btn_start = ttk.Button(act, text="Başlat",
                                     style="Accent.TButton", command=self._start)
         self.btn_start.pack(side="left")
-        self.btn_stop = ttk.Button(act, text="■  Durdur (F6)", command=self._stop,
+        self.btn_stop = ttk.Button(act, text="Durdur", command=self._stop,
                                    state="disabled")
         self.btn_stop.pack(side="left", padx=(8, 0))
-        self._autostart_var = tk.BooleanVar(value=self._autostart_was)
         ttk.Checkbutton(act, text="Windows ile otomatik başlat",
                         variable=self._autostart_var,
                         command=self._autostart_toggle).pack(side="right")
 
         # --- durum degiskenleri ---
         self.var_status = tk.StringVar(value="Durum: Hazır")
+        self.var_status_card = tk.StringVar(value="Hazır")
         self.var_phys = tk.StringVar(value="Fiziksel kol: -")
         self.var_virt = tk.StringVar(value="Sanal kol: -")
         self.var_rumble = tk.StringVar(value="Titreşim: -")
@@ -477,65 +473,63 @@ class FixerApp:
         self.var_virt_s = tk.StringVar(value="-")
         self.var_rumble_s = tk.StringVar(value="-")
         self.var_batt_s = tk.StringVar(value="-")
+        self._mirror(self.var_status, self.var_status_card, "Durum: ")
         self._mirror(self.var_phys, self.var_phys_s, "Fiziksel kol: ")
         self._mirror(self.var_virt, self.var_virt_s, "Sanal kol: ")
         self._mirror(self.var_rumble, self.var_rumble_s, "Titreşim: ")
         self._mirror(self.var_batt, self.var_batt_s, "Pil: ")
 
         # --- durum kartlari (Panel Duzeni: Sade iken gizlenir) ---
-        self._stats_row = tk.Frame(self.root, bg=c["card"], highlightthickness=1,
-                                   highlightbackground=c["divider"])
-        self._stats_row.pack(fill="x", padx=10, pady=(8, 0))
-        self._reg(self._stats_row, "card_bord")
-        for col in (0, 2, 4, 6, 8):
-            self._stats_row.grid_columnconfigure(col, weight=1)
+        self._stats_row = tk.Frame(self.root, bg=c["bg"])
+        self._stats_row.pack(fill="x", padx=14, pady=(10, 0))
+        self._reg(self._stats_row, "bg")
+        for col in range(5):
+            self._stats_row.grid_columnconfigure(col, weight=1, uniform="stat")
         self._vib_bars_cvs = []
         self._batt_cvs = []
 
         def stat_card(title, col):
-            box = tk.Frame(self._stats_row, bg=c["card"])
-            box.grid(row=0, column=col, sticky="nsew", padx=12, pady=7)
-            tl = tk.Label(box, text=title, bg=c["card"], fg=c["muted"],
-                          font=("Segoe UI", 9))
-            tl.pack(anchor="w")
+            card = tk.Frame(self._stats_row, bg=c["card"],
+                            highlightthickness=1,
+                            highlightbackground=c["border"])
+            card.grid(row=0, column=col, sticky="nsew",
+                      padx=(0 if col == 0 else 8, 0), pady=0)
+            self._reg(card, "stat_card")
+            box = tk.Frame(card, bg=c["card"])
+            box.pack(fill="x", padx=12, pady=(8, 9))
             self._reg(box, "card")
+            tl = tk.Label(box, text=title, bg=c["card"], fg=c["muted"],
+                          font=("Segoe UI", 9), anchor="w")
+            tl.pack(anchor="w")
             self._reg(tl, "card_muted")
             row = tk.Frame(box, bg=c["card"])
-            row.pack(anchor="w", pady=(3, 0))
+            row.pack(anchor="w", pady=(4, 0))
             self._reg(row, "card")
             return row
-
-        def vdiv(col):
-            d = tk.Frame(self._stats_row, width=1, bg=c["divider"])
-            d.grid(row=0, column=col, sticky="ns", pady=6)
-            self._reg(d, "divider_line")
 
         r = stat_card("Durum", 0)
         dot = tk.Label(r, text="●", bg=c["card"], fg=c["green"],
                        font=("Segoe UI", 10))
         dot.pack(side="left")
         self._reg(dot, "card_dot")
-        lbl = tk.Label(r, textvariable=self.var_status, bg=c["card"], fg=c["fg"],
-                       font=("Segoe UI", 10, "bold"))
+        lbl = tk.Label(r, textvariable=self.var_status_card, bg=c["card"],
+                       fg=c["fg"], font=("Segoe UI", 10, "bold"))
         lbl.pack(side="left", padx=(5, 0))
         self._reg(lbl, "card_lbl")
-        vdiv(1)
 
-        r = stat_card("Fiziksel Kol ID", 2)
+        r = stat_card("Fiziksel Kol ID", 1)
         lbl = tk.Label(r, textvariable=self.var_phys_s, bg=c["card"], fg=c["fg"],
                        font=("Segoe UI", 10))
         lbl.pack(side="left")
         self._reg(lbl, "card_lbl")
-        vdiv(3)
 
-        r = stat_card("Sanal Kol ID", 4)
+        r = stat_card("Sanal Kol ID", 2)
         lbl = tk.Label(r, textvariable=self.var_virt_s, bg=c["card"], fg=c["fg"],
                        font=("Segoe UI", 10))
         lbl.pack(side="left")
         self._reg(lbl, "card_lbl")
-        vdiv(5)
 
-        r = stat_card("Titreşim", 6)
+        r = stat_card("Titreşim", 3)
         cv = tk.Canvas(r, width=54, height=18, bg=c["card"],
                        highlightthickness=0)
         cv.pack(side="left")
@@ -545,9 +539,8 @@ class FixerApp:
                        fg=c["muted"], font=("Segoe UI", 9))
         lbl.pack(side="left", padx=(7, 0))
         self._reg(lbl, "card_muted")
-        vdiv(7)
 
-        r = stat_card("Pil Durumu", 8)
+        r = stat_card("Pil Durumu", 4)
         cv = tk.Canvas(r, width=42, height=19, bg=c["card"],
                        highlightthickness=0)
         cv.pack(side="left")
@@ -560,24 +553,40 @@ class FixerApp:
 
         # --- govde: sol menu + sayfalar ---
         body = tk.Frame(self.root, bg=c["bg"])
-        body.pack(fill="both", expand=True, padx=10, pady=(8, 0))
+        body.pack(fill="both", expand=True, padx=14, pady=(10, 0))
+        self._reg(body, "bg")
         self._body = body
 
-        side = tk.Frame(body, bg=c["side_bg"], width=205)
+        side = tk.Frame(body, bg=c["side_bg"], width=220)
         side.pack(side="left", fill="y")
         side.pack_propagate(False)
         self._reg(side, "side")
 
+        brand = tk.Frame(side, bg=c["side_bg"])
+        brand.pack(fill="x", padx=16, pady=(16, 12))
+        self._reg(brand, "side")
+        bt = tk.Label(brand, text="Gamepad Fixer", bg=c["side_bg"],
+                      fg=c["fg"], font=("Segoe UI", 13, "bold"), anchor="w")
+        bt.pack(anchor="w")
+        self._reg(bt, "side_title")
+        bs = tk.Label(brand, text="Xbox kol düzeltici", bg=c["side_bg"],
+                      fg=c["muted"], font=("Segoe UI", 9), anchor="w")
+        bs.pack(anchor="w", pady=(2, 0))
+        self._reg(bs, "side_muted")
+        bd = tk.Frame(side, height=1, bg=c["divider"])
+        bd.pack(fill="x", padx=14, pady=(0, 8))
+        self._reg(bd, "divider_line")
+
         self._nav = {}
-        for key, icon, text in (("panel", "☰", "Kontrol Paneli"),
-                                ("test", "◎", "Kalibrasyon ve Test"),
-                                ("settings", "⚙", "Gelişmiş Ayarlar")):
+        for key, icon, text in (("panel", "\uE80F", "Kontrol Paneli"),
+                                ("test", "\uE7FC", "Kalibrasyon ve Test"),
+                                ("settings", "\uE713", "Gelişmiş Ayarlar")):
             item = tk.Frame(side, bg=c["side_bg"], cursor="hand2")
-            item.pack(fill="x", padx=8, pady=(8 if key == "panel" else 2, 0))
+            item.pack(fill="x", padx=8, pady=2)
             strip = tk.Frame(item, width=3, bg=c["side_bg"])
             strip.pack(side="left", fill="y")
             ic = tk.Label(item, text=icon, bg=c["side_bg"], fg=c["muted"],
-                          font=("Segoe UI", 11), padx=8, pady=7)
+                          font=("Segoe MDL2 Assets", 13), padx=10, pady=8)
             ic.pack(side="left")
             tx = tk.Label(item, text=text, bg=c["side_bg"], fg=c["fg"],
                           font=("Segoe UI", 10), anchor="w")
@@ -589,35 +598,74 @@ class FixerApp:
                 w.bind("<Enter>", lambda e, k=key: self._nav_hover(k, True))
                 w.bind("<Leave>", lambda e, k=key: self._nav_hover(k, False))
 
+        spacer = tk.Frame(side, bg=c["side_bg"])
+        spacer.pack(fill="both", expand=True)
+        self._reg(spacer, "side")
+        foot = tk.Frame(side, bg=c["side_bg"])
+        foot.pack(fill="x", padx=16, pady=(0, 14))
+        self._reg(foot, "side")
+        fv = tk.Label(foot, text="v%s" % APP_VERSION, bg=c["side_bg"],
+                      fg=c["muted"], font=("Segoe UI", 9), anchor="w")
+        fv.pack(anchor="w")
+        self._reg(fv, "side_muted")
+        fd = tk.Label(foot, text="XInput  •  ViGEmBus", bg=c["side_bg"],
+                      fg=c["muted"], font=("Segoe UI", 8), anchor="w")
+        fd.pack(anchor="w", pady=(1, 0))
+        self._reg(fd, "side_muted")
+
         self._pages = {}
         for key in ("panel", "test", "settings"):
             fr = tk.Frame(body, bg=c["bg"])
+            self._reg(fr, "bg")
             self._pages[key] = fr
 
         # sayfa: Kontrol Paneli (gunluk)
         pf = self._pages["panel"]
-        ttk.Label(pf, text="Uygulama Günlüğü",
-                  style="Muted.TLabel").pack(anchor="e")
-        self.log = scrolledtext.ScrolledText(
-            pf, wrap="none", font=("Consolas", 9), state="disabled",
+        self._page_header(pf, "Kontrol Paneli",
+                          "Kolu bağla, Başlat'a bas; durum ve günlük burada.")
+        log_card = tk.Frame(pf, bg=c["card"], highlightthickness=1,
+                            highlightbackground=c["divider"])
+        log_card.pack(fill="both", expand=True)
+        self._reg(log_card, "log_card")
+        lh = tk.Frame(log_card, bg=c["card"])
+        lh.pack(fill="x", padx=12, pady=(9, 4))
+        self._reg(lh, "card")
+        lt = tk.Label(lh, text="Uygulama Günlüğü", bg=c["card"], fg=c["fg"],
+                      font=("Segoe UI", 10, "bold"))
+        lt.pack(side="left")
+        self._reg(lt, "log_head")
+        ttk.Button(lh, text="Temizle", style="Small.TButton",
+                   command=self._clear_log).pack(side="right")
+        log_wrap = tk.Frame(log_card, bg=c["log_bg"])
+        log_wrap.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+        self._reg(log_wrap, "log_panel")
+        self.log = tk.Text(
+            log_wrap, wrap="word", font=("Consolas", 9), state="disabled",
             relief="flat", bd=0, background=c["log_bg"],
-            foreground=c["log_fg"])
-        self.log.pack(fill="both", expand=True, pady=(4, 0))
+            foreground=c["log_fg"], padx=8, pady=6,
+            insertbackground=c["log_fg"], selectbackground=c["sel_bg"])
+        self.log.pack(side="left", fill="both", expand=True)
+        self._log_scroll = ttk.Scrollbar(
+            log_wrap, orient="vertical", command=self.log.yview)
+        self._log_scroll.pack(side="right", fill="y")
+        self.log.configure(yscrollcommand=self._log_scroll.set)
 
         # sayfa: Kalibrasyon ve Test
         tf = self._pages["test"]
-        ttk.Label(tf, text="Kalibrasyon ve Test",
-                  style="Muted.TLabel").pack(anchor="e")
+        self._page_header(tf, "Kalibrasyon ve Test",
+                          "Canlı değerler, ölü bölge ve titreşim testleri.")
         self._build_test_tab(tf)
 
         # sayfa: Gelismis Ayarlar
         sf = self._pages["settings"]
+        self._page_header(sf, "Gelişmiş Ayarlar",
+                          "Filtreler, giriş yuvası ve başlatma seçenekleri.")
         self._build_settings_page(sf)
 
         # --- alt durum cubugu ---
         bottom = tk.Frame(self.root, bg=c["card"], highlightthickness=1,
                           highlightbackground=c["divider"])
-        bottom.pack(fill="x", padx=10, pady=(8, 0))
+        bottom.pack(fill="x", padx=14, pady=(10, 0))
         self._reg(bottom, "card_bord")
         bi = tk.Frame(bottom, bg=c["card"])
         bi.pack(fill="x", padx=12, pady=6)
@@ -676,9 +724,9 @@ class FixerApp:
 
         # --- ipucu satiri ---
         ttk.Label(self.root, style="Muted.TLabel",
-                  text="İpucu: Kolların canlı değerleri 'Kalibrasyon ve Test' "
-                       "sayfasında; koyu/açık tema 'Görünüm' menüsünde."
-                  ).pack(fill="x", padx=12, pady=(6, 8))
+                  text="İpucu: Canlı değerler 'Kalibrasyon ve Test' "
+                       "sayfasında; tema 'Görünüm' menüsünde."
+                  ).pack(fill="x", padx=16, pady=(6, 10))
 
         self._show_page(self._page)
         self._apply_panel_mode()
@@ -686,6 +734,20 @@ class FixerApp:
     # ------------------------------------------------------------- yerlesim
     def _reg(self, widget, kind):
         self._theme_widgets.append((widget, kind))
+
+    def _page_header(self, parent, title, subtitle):
+        c = self._colors
+        head = tk.Frame(parent, bg=c["bg"])
+        head.pack(fill="x", pady=(2, 12))
+        self._reg(head, "bg")
+        t = tk.Label(head, text=title, bg=c["bg"], fg=c["fg"],
+                     font=("Segoe UI", 16, "bold"), anchor="w")
+        t.pack(anchor="w")
+        self._reg(t, "page_title")
+        s = tk.Label(head, text=subtitle, bg=c["bg"], fg=c["muted"],
+                     font=("Segoe UI", 9), anchor="w")
+        s.pack(anchor="w", pady=(3, 0))
+        self._reg(s, "page_sub")
 
     def _mirror(self, src, dst, prefix):
         def upd(*_a):
@@ -783,14 +845,16 @@ class FixerApp:
         self.root.bind("<F5>", lambda e: self._start())
         self.root.bind("<F6>", lambda e: self._stop())
         self.root.bind("<Control-t>", lambda e: self._theme_toggle())
+        self.root.bind("<Control-comma>", lambda e: self._open_settings())
 
     # ------------------------------------------------------------------ tema
     def _recolor_menu(self, m):
         c = self._colors
+        active_fg = "#000000" if self._theme_name == "dark" else "#ffffff"
         try:
             m.configure(bg=c["menu_bg"], fg=c["menu_fg"],
                         activebackground=c["accent"],
-                        activeforeground="#ffffff",
+                        activeforeground=active_fg,
                         selectcolor=c["menu_bg"], bd=0, relief="flat")
         except tk.TclError:
             pass
@@ -802,43 +866,52 @@ class FixerApp:
             style.theme_use("clam")
         except tk.TclError:
             pass
+        base_font = ("Segoe UI", 10)
         style.configure(".", background=c["bg"], foreground=c["fg"],
                         fieldbackground=c["entry_bg"],
                         bordercolor=c["border"],
                         lightcolor=c["border"], darkcolor=c["border"],
-                        troughcolor=c["entry_bg"], focuscolor=c["bg"],
-                        font=("Segoe UI", 10))
+                        troughcolor=c["entry_bg"], focuscolor=c["focus"],
+                        font=base_font)
         style.configure("TFrame", background=c["bg"])
-        style.configure("TLabel", background=c["bg"], foreground=c["fg"])
+        style.configure("TLabel", background=c["bg"], foreground=c["fg"],
+                        font=base_font)
         style.configure("Head.TLabel", background=c["bg"], foreground=c["fg"],
                         font=("Segoe UI", 10, "bold"))
         style.configure("Muted.TLabel", background=c["bg"],
-                        foreground=c["muted"])
+                        foreground=c["muted"], font=("Segoe UI", 9))
         style.configure("TCheckbutton", background=c["bg"], foreground=c["fg"],
-                        focuscolor=c["bg"], indicatorcolor=c["entry_bg"])
+                        focuscolor=c["bg"], font=base_font)
         style.map("TCheckbutton",
                   background=[("active", c["bg"])],
-                  foreground=[("disabled", c["muted"])],
-                  indicatorcolor=[("selected", c["accent"]),
-                                  ("!selected", c["entry_bg"])])
-        style.configure("TButton", background=c["panel2"], foreground=c["fg"],
-                        bordercolor=c["border"], lightcolor=c["panel2"],
-                        darkcolor=c["panel2"], focuscolor=c["bg"],
-                        padding=(12, 5), relief="flat")
+                  foreground=[("disabled", c["muted"])])
+        style.configure("TButton", background=c["card"], foreground=c["fg"],
+                        bordercolor=c["border"], lightcolor=c["card"],
+                        darkcolor=c["card"], focuscolor=c["focus"],
+                        padding=(14, 6), relief="flat", font=base_font)
         style.map("TButton",
                   background=[("pressed", c["sel_bg"]),
-                              ("active", c["sel_bg"]),
+                              ("active", c["hover"]),
                               ("disabled", c["bg"])],
                   foreground=[("disabled", c["muted"])])
         style.configure("Accent.TButton", background=c["accent"],
                         foreground="#ffffff", bordercolor=c["accent"],
                         lightcolor=c["accent"], darkcolor=c["accent"],
-                        focuscolor=c["accent"], padding=(12, 5))
+                        focuscolor=c["accent"], padding=(16, 6),
+                        font=("Segoe UI", 10, "bold"))
         style.map("Accent.TButton",
-                  background=[("pressed", c["accent"]),
-                              ("active", c["accent"]),
+                  background=[("pressed", c["accent_pressed"]),
+                              ("active", c["accent_hover"]),
                               ("disabled", c["bg"])],
                   foreground=[("disabled", c["muted"])])
+        style.configure("Small.TButton", background=c["card"],
+                        foreground=c["muted"], bordercolor=c["card"],
+                        lightcolor=c["card"], darkcolor=c["card"],
+                        focuscolor=c["card"], padding=(8, 3),
+                        relief="flat", font=("Segoe UI", 9))
+        style.map("Small.TButton",
+                  background=[("active", c["hover"])],
+                  foreground=[("active", c["fg"])])
         style.configure("TNotebook", background=c["bg"],
                         bordercolor=c["border"],
                         lightcolor=c["bg"], darkcolor=c["bg"],
@@ -860,16 +933,24 @@ class FixerApp:
         style.configure("TProgressbar", background=c["accent"],
                         troughcolor=c["entry_bg"], bordercolor=c["entry_bg"],
                         lightcolor=c["accent"], darkcolor=c["accent"],
-                        thickness=10)
+                        thickness=8)
+        style.configure("TSeparator", background=c["divider"])
+        style.configure("Vertical.TScrollbar", background=c["panel2"],
+                        troughcolor=c["log_bg"], bordercolor=c["log_bg"],
+                        arrowcolor=c["muted"], gripcount=0, arrowsize=12,
+                        relief="flat")
+        style.map("Vertical.TScrollbar",
+                  background=[("active", c["hover"]),
+                              ("pressed", c["sel_bg"])])
         style.configure("TEntry", fieldbackground=c["entry_bg"],
                         foreground=c["fg"], bordercolor=c["border"],
                         lightcolor=c["border"], darkcolor=c["border"],
-                        insertcolor=c["fg"], padding=3)
+                        insertcolor=c["fg"], padding=5, font=base_font)
         style.configure("TCombobox", fieldbackground=c["entry_bg"],
                         background=c["panel2"], foreground=c["fg"],
                         arrowcolor=c["fg"], bordercolor=c["border"],
                         lightcolor=c["border"], darkcolor=c["border"],
-                        padding=3)
+                        padding=4, font=base_font)
         style.map("TCombobox",
                   fieldbackground=[("readonly", c["entry_bg"])],
                   foreground=[("readonly", c["fg"])],
@@ -911,10 +992,6 @@ class FixerApp:
                                selectbackground=c["sel_bg"])
             self.log.tag_config("err", foreground=c["err"])
             self.log.tag_config("ok", foreground=c["ok"])
-            self.log.vbar.configure(bg=c["panel2"], troughcolor=c["bg"],
-                                    activebackground=c["accent"],
-                                    bd=0, relief="flat",
-                                    highlightbackground=c["bg"])
         except (tk.TclError, AttributeError):
             pass
         # Cubuk daireleri: renkler bir sonraki karede yeniden cizilir.
@@ -958,8 +1035,8 @@ class FixerApp:
                     val, _ = winreg.QueryValueEx(k, "AppsUseLightTheme")
                 return "light" if int(val) == 1 else "dark"
             except OSError:
-                return "dark"
-        return choice if choice in THEMES else "dark"
+                return "light"
+        return choice if choice in THEMES else "light"
 
     def _system_theme_poll(self):
         try:
@@ -1071,6 +1148,14 @@ class FixerApp:
         self._log("")
 
     # ------------------------------------------------------------------ log
+    def _clear_log(self):
+        try:
+            self.log.configure(state="normal")
+            self.log.delete("1.0", "end")
+            self.log.configure(state="disabled")
+        except Exception:
+            pass
+
     def _log(self, line):
         self._log_lines.append(line)
         if len(self._log_lines) > 3000:
@@ -2460,11 +2545,12 @@ class FixerApp:
         self._show_page("settings")
 
     def _build_settings_page(self, parent):
-        ttk.Label(parent, text="Gelişmiş Ayarlar",
-                  style="Muted.TLabel").pack(anchor="e")
+        ttk.Label(parent, text="Filtre ayarları",
+                  style="Head.TLabel").pack(anchor="w", pady=(0, 8))
 
         form = tk.Frame(parent, bg=self._colors["bg"])
-        form.pack(anchor="w", pady=(8, 0))
+        form.pack(anchor="w", pady=(0, 0))
+        self._reg(form, "bg")
         c = self.cfg
         rows = [
             ("Ölü bölge (deadzone)", "deadzone", "0 - 0.9 · 0 = kapalı · örn: 0.12"),
@@ -2511,6 +2597,7 @@ class FixerApp:
 
         btns = tk.Frame(parent, bg=self._colors["bg"])
         btns.pack(anchor="w", pady=(16, 0))
+        self._reg(btns, "bg")
         ttk.Button(btns, text="Kaydet", style="Accent.TButton",
                    command=self._save_settings).pack(side="left")
         ttk.Button(btns, text="Varsayılan Değerler",
@@ -2584,7 +2671,7 @@ class FixerApp:
                 self.var_vib_scale.set("%d%%" % v)
             except Exception:
                 pass
-            self._set_theme(str(self.cfg.get("theme", "dark")))
+            self._set_theme(str(self.cfg.get("theme", "system")))
             self._refresh_settings_fields()
             self._set_panel_mode(str(self.cfg.get("panel_mode", "detayli")))
 
@@ -2734,6 +2821,16 @@ class FixerApp:
             pass
 
     # ------------------------------------------------------------------ yardim
+    def _open_log_folder(self):
+        try:
+            os.startfile(os.path.dirname(LOG_PATH))
+        except OSError as ex:
+            messagebox.showwarning(APP_TITLE,
+                                   "Günlük klasörü açılamadı:\n%s" % ex)
+
+    def _open_github(self):
+        webbrowser.open("https://github.com/menuaGG/gamepad-fixer")
+
     def _help(self):
         messagebox.showinfo(
             "Nasıl Kullanılır?",
@@ -2752,9 +2849,9 @@ class FixerApp:
             "  Kolu kapat -> Başlat -> 'Fiziksel kol bekleniyor...' yazınca kolu aç.\n\n"
             "ViGEmBus sürücüsü eksikse uygulama, ilk açılışta otomatik\n"
             "indirip kurmayı önerir (Araçlar menüsünden de kurulabilir).\n\n"
-            "Ayarlar menüsünden ölü bölge, dairesellik ve diğer filtre değerlerini\n"
-            "değiştirebilirsin (bir sonraki Başlat'ta geçerli olur).\n\n"
-            "Görünüm menüsü (veya Ctrl+T) ile koyu / açık tema seçebilirsin.")
+            "Dosya > Gelişmiş Ayarlar'dan ölü bölge, dairesellik ve diğer\n"
+            "filtre değerlerini değiştirebilirsin (bir sonraki Başlat'ta geçerli olur).\n\n"
+            "Görünüm menüsü (veya Ctrl+T) ile sistem / açık / koyu tema seçebilirsin.")
 
     def _about(self):
         messagebox.showinfo(
@@ -2767,7 +2864,7 @@ class FixerApp:
             "  • canlı düğme/tetik test paneli, titreşim gücü ayarı\n"
             "  • pil göstergesi, Windows ile otomatik başlatma\n"
             "  • eksik ViGEmBus sürücüsünü otomatik indirip kurma\n"
-            "  • koyu/açık tema (Görünüm menüsü)\n\n"
+            "  • Windows 11 tarzı arayüz, sistem/açık/koyu tema\n\n"
             "Düzeltilmiş veriyi sanal Xbox 360 kolu (ViGEmBus, ürün 028e)\n"
             "olarak sisteme sunar; titreşim fiziksel kola aktarılır."
             % (APP_TITLE, APP_VERSION))

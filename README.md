@@ -27,7 +27,7 @@ Fiziksel kolu okur; dinlenme kaymasını otomatik telafi eder, filtreleri uygula
 
 - **Dairesel ölü bölge** (kare değil), **dairesellik düzeltme**, **yumuşatma** ve **dead-band (crosstalk)** filtreleri — hepsi ayarlanabilir.
 - **Canlı test sayfası**: düğmeler, analog çubuklar, dairesellik hatası (Avg Error) ve titreşim testi (1 sn / sürekli).
-- Koyu / açık / sistem teması, sade / detaylı panel düzeni.
+- Windows 11 tarzı arayüz: native menü çubuğu, Segoe UI, sade durum kartları ve sistem / açık / koyu tema. Sade / detaylı panel düzeni.
 - Pil durumu göstergesi.
 - Ayarlar kalıcıdır: `%LOCALAPPDATA%\GamepadFixer\config.json`
 
@@ -112,6 +112,7 @@ Eski ViGEmBus sürücüleri (özellikle 2020 tarihli **1.17.333.0**) güncel Win
 
 ## Sürüm notları
 
+- **v1.11.0** — Windows 11 tarzı arayüz: native menü çubuğu, Segoe UI tipografi, sistem teması varsayılanı, sade durum kartları ve MDL2 ikonlu kenar menü. İşlevler ve sürücü davranışı değişmedi.
 - **v1.10.1** — 1.22.0 paketindeki resmi sürücü dosyasının (1.21.442.0) yanlışlıkla "eski" sayılması düzeltildi. Güncel sürücüyle gereksiz onarım/uyarı çıkmaz.
 - **v1.10** — Eski/bozuk ViGEmBus tespiti (sürüm + dosya kontrolü), güvenli temizlik + yeniden başlatma akışı, "ViGEmBus'u onar" menüsü, kurulum öncesi sürüm doğrulama, mavi ekran uyarıları. Sürücü yönetimi `vgamepad`'den ayrıldı: ViGEmBus hiç kurulu olmasa bile uygulama açılıp kurulum önerebilir.
 - **v1.9 ve öncesi** — Bu sürümlerde eski ViGEmBus üzerine kurulum koruması yoktu; lütfen v1.10.1+ kullanın.
