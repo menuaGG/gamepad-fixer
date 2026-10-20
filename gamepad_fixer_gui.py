@@ -42,12 +42,14 @@ import tkinter as tk
 import traceback
 from tkinter import messagebox, scrolledtext, ttk
 
+import vigem_driver as vd
+
 BASEDIR = os.path.dirname(os.path.abspath(__file__))
 if BASEDIR not in sys.path:
     sys.path.insert(0, BASEDIR)
 
 APP_TITLE = "Gamepad Fixer"
-APP_VERSION = "1.9"
+APP_VERSION = "1.10"
 CREATE_NO_WINDOW = 0x08000000
 
 CONFIG_PATH = os.path.join(
@@ -72,6 +74,8 @@ DEFAULTS = {
     "rumble_scale": 100,
     "theme": "dark",
     "panel_mode": "detayli",
+    "vigem_repair_stage": "",
+    "vigem_cleanup_boot": 0,
 }
 
 # Tema paletleri: "dark" (varsayilan) ve "light" (acik).
@@ -299,6 +303,13 @@ class FixerApp:
         except OSError:
             self._file_log = None
         self._log_file("---- uygulama acildi (v%s) ----" % APP_VERSION)
+        try:
+            _st = vd.vigem_driver_state()
+            self._log_file("ViGEmBus: servis=%s, surum=%s, onarim=%s"
+                           % (_st.get("service"), _st.get("version_text"),
+                              _st.get("repair_needed")))
+        except Exception:
+            pass
         self._log_file("panel X yonu: %s (kalici ayar)"
                        % ("ters" if self._flip_x else "duz"))
         self._log_file("panel Y yonu: %s (kalici ayar)"
@@ -351,7 +362,9 @@ class FixerApp:
         m_tools.add_command(label="Ölü Bölge Testi",
                             command=self._dz_test_from_menu)
         m_tools.add_separator()
-        m_tools.add_command(label="ViGEmBus sürücüsünü kur (gerekliyse)",
+        m_tools.add_command(label="ViGEmBus'u onar (eski sürümü temizle)",
+                            command=self._vigem_repair_menu)
+        m_tools.add_command(label="ViGEmBus sürücüsünü kur / güncelle",
                             command=self._vigem_menu)
         self._menus.append(m_tools)
         self._menu_ds["tools"] = m_tools
@@ -1243,11 +1256,23 @@ class FixerApp:
                           "ayrıntı: günlük dosyası.")
             else:
                 try:
-                    import gamepad_fixer as gf
-                    drv = gf.vigem_driver_installed()
+                    state = vd.vigem_driver_state()
                 except Exception:
-                    drv = None
-                if drv is False:
+                    state = {}
+                if state.get("repair_needed"):
+                    ver = state.get("version_text") or "bilinmiyor"
+                    self._log("ViGEmBus: eski/bozuk sürücü bulundu "
+                              "(sürüm %s)." % ver)
+                    if messagebox.askyesno(
+                            APP_TITLE,
+                            "Düzeltici başlatılamadı.\n\n"
+                            "Sebep: eski/bozuk ViGEmBus sürücüsü tespit "
+                            "edildi (sürüm %s).\n\n"
+                            "Bu sürüm bazı sistemlerde mavi ekrana yol "
+                            "açabilir. Güvenli onarımı başlatayım mı?"
+                            % ver):
+                        self._vigem_repair_start()
+                elif state.get("service") is False:
                     if messagebox.askyesno(
                             APP_TITLE,
                             "Düzeltici başlatılamadı ve ViGEmBus sürücüsü\n"
@@ -1278,29 +1303,188 @@ class FixerApp:
     def _vigem_menu(self):
         self._vigem_prompt(manual=True)
 
+    def _vigem_repair_menu(self):
+        try:
+            state = vd.vigem_driver_state()
+        except Exception:
+            state = {}
+        ver = state.get("version_text") or "kurulu değil"
+        if not messagebox.askyesno(
+                APP_TITLE,
+                "ViGEmBus onarımı\n\n"
+                "Mevcut sürüm: %s\n\n"
+                "Eski sürücü tamamen temizlenecek, bilgisayar yeniden "
+                "başlatılacak ve güncel sürüm (1.22.0) kurulacak.\n\n"
+                "Devam edilsin mi?" % ver):
+            return
+        self._vigem_repair_start()
+
+    def _repair_rebooted(self):
+        """Temizlikten sonra bilgisayar yeniden başlatıldı mı?"""
+        prev = self.cfg.get("vigem_cleanup_boot") or 0
+        try:
+            now = vd.system_boot_time()
+        except Exception:
+            now = None
+        if not prev or now is None:
+            return True
+        try:
+            return abs(float(now) - float(prev)) > 60.0
+        except (TypeError, ValueError):
+            return True
+
+    def _clear_repair_stage(self):
+        self.cfg["vigem_repair_stage"] = ""
+        self.cfg["vigem_cleanup_boot"] = 0
+        save_config(self.cfg)
+
+    def _restart_computer(self):
+        try:
+            subprocess.Popen(
+                ["shutdown", "/r", "/t", "5", "/c",
+                 "Gamepad Fixer: ViGEmBus onarimi icin yeniden baslatiliyor"],
+                creationflags=CREATE_NO_WINDOW)
+            self._log("Bilgisayar 5 saniye içinde yeniden başlatılacak...")
+        except Exception as exc:
+            messagebox.showinfo(
+                APP_TITLE,
+                "Yeniden başlatma başlatılamadı.\nLütfen bilgisayarı elle "
+                "yeniden başlatın.\n\n(%s)" % exc)
+
+    def _vigem_repair_start(self):
+        if self._vigem_busy:
+            self._log("ViGEmBus işlemi zaten sürüyor, bekleyin...")
+            return
+        self._vigem_busy = True
+        self._log("ViGEmBus onarımı: eski sürücü temizleniyor "
+                  "(yönetici izni istenecek)...")
+        threading.Thread(target=self._vigem_repair_worker,
+                         daemon=True).start()
+
+    def _vigem_repair_worker(self):
+        try:
+            res = vd.vigem_cleanup_driver()
+            log = str(res.get("log") or "")
+            for line in log.splitlines():
+                low = line.lower()
+                if (line.startswith(("Admin:", "Packages:",
+                                     "Deleting package", "sys file",
+                                     "ERROR:", "ExitCode:"))
+                        or "deleted" in low or "success" in low):
+                    self._queue.put("ViGEmBus onarım: " + line)
+            self._queue.put(("call",
+                             lambda r=res: self._vigem_repair_finish(
+                                 bool(r.get("ok")),
+                                 str(r.get("message") or ""))))
+        except Exception as exc:
+            self._queue.put(("call",
+                             lambda e=exc: self._vigem_repair_finish(
+                                 False, str(e) or repr(e))))
+
+    def _vigem_repair_finish(self, ok, msg):
+        self._vigem_busy = False
+        if not ok:
+            self._log("ViGEmBus onarımı başarısız: %s" % msg)
+            messagebox.showerror(
+                APP_TITLE,
+                "Eski ViGEmBus sürücüsü temizlenemedi.\n\n"
+                "%s\n\n"
+                "Yönetici iznini onayladığından emin ol. Tekrar denemek "
+                "için Araçlar > ViGEmBus'u onar.\n\n"
+                "Elle temizlik (yönetici PowerShell):\n"
+                "  pnputil /enum-drivers  → vigembus.inf satırındaki oemX.inf\n"
+                "  pnputil /delete-driver oemX.inf /uninstall /force\n"
+                "  sc.exe delete ViGEmBus" % msg)
+            return
+        try:
+            self.cfg["vigem_repair_stage"] = "cleanup_done"
+            self.cfg["vigem_cleanup_boot"] = vd.system_boot_time() or 0
+            save_config(self.cfg)
+        except Exception:
+            pass
+        self._log("ViGEmBus: eski sürücü temizlendi; yeniden başlatma "
+                  "bekleniyor.")
+        if messagebox.askyesno(
+                APP_TITLE,
+                "Eski ViGEmBus sürücüsü temizlendi. ✅\n\n"
+                "Şimdi bilgisayarın yeniden başlatılması gerekiyor. "
+                "Açılışta güncel sürücü (1.22.0) kurulacak.\n\n"
+                "Şimdi yeniden başlatayım mı?"):
+            self._restart_computer()
+
     def _vigem_prompt(self, manual):
         try:
-            import gamepad_fixer as gf
-        except ImportError:
-            return
-        try:
-            st = gf.vigem_driver_installed()
+            state = vd.vigem_driver_state()
         except Exception:
-            st = None
-        if st is None:
-            if manual:
-                self._log("ViGEmBus durumu okunamadı; elle kur: "
-                          "github.com/nefarius/ViGEmBus/releases")
+            state = {}
+
+        stage = str(self.cfg.get("vigem_repair_stage") or "")
+        if stage == "cleanup_done":
+            if not self._repair_rebooted():
+                if messagebox.askyesno(
+                        APP_TITLE,
+                        "ViGEmBus temizliği tamamlandı.\n\n"
+                        "Yeni sürücünün güvenle kurulabilmesi için "
+                        "bilgisayarın yeniden başlatılması gerekiyor.\n\n"
+                        "Şimdi yeniden başlatayım mı?"):
+                    self._restart_computer()
+                return
+            if state.get("repair_needed"):
+                self._log("ViGEmBus: temizlik sonrası eski sürücü hâlâ "
+                          "görünüyor; onarım tekrarlanacak.")
+                if messagebox.askyesno(
+                        APP_TITLE,
+                        "Temizlik tamamlanmamış görünüyor (eski sürücü hâlâ "
+                        "kayıtlı).\n\nOnarımı tekrar deneyeyim mi?"):
+                    self._vigem_repair_start()
+                return
+            if state.get("service") is True:
+                # Kurulum zaten yapılmış (ör. elle). Aşamayı temizle.
+                self._clear_repair_stage()
+                if not manual:
+                    return
+            else:
+                if messagebox.askyesno(
+                        APP_TITLE,
+                        "ViGEmBus temizliği tamamlandı.\n\n"
+                        "Güncel sürücüyü (1.22.0) şimdi kurayım mı?\n"
+                        "(İnternet gerekir; Windows yönetici izni "
+                        "soracaktır.)"):
+                    self._vigem_install_start()
+                return
+
+        if state.get("repair_needed"):
+            ver = state.get("version_text") or "bilinmiyor"
+            self._log("ViGEmBus: eski/bozuk sürücü tespit edildi "
+                      "(sürüm %s)." % ver)
+            if messagebox.askyesno(
+                    APP_TITLE,
+                    "⚠️ Eski / bozuk ViGEmBus sürücüsü tespit edildi!\n\n"
+                    "Sürüm: %s\n\n"
+                    "Bu sürüm bazı sistemlerde sürücü kurulumu sırasında "
+                    "mavi ekran veya çakışmaya yol açabilir.\n\n"
+                    "Güvenli onarım:\n"
+                    "  1) Eski sürücü temizlenir\n"
+                    "  2) Bilgisayar yeniden başlatılır\n"
+                    "  3) Güncel ViGEmBus (1.22.0) kurulur\n\n"
+                    "Onarımı şimdi başlatayım mı?" % ver):
+                self._vigem_repair_start()
+            else:
+                self._log("ViGEmBus onarımı atlandı "
+                          "(Araçlar > ViGEmBus'u onar).")
             return
-        if st is True and not manual:
-            return
-        if st is True:
+
+        if state.get("service") is True:
+            if not manual:
+                return
+            ver = state.get("version_text") or "bilinmiyor"
             if not messagebox.askyesno(
                     APP_TITLE,
-                    "ViGEmBus sürücüsü zaten kurulu görünüyor.\n\n"
-                    "Yine de yeniden kurmak (güncellemek) ister misin?"):
+                    "ViGEmBus sürücüsü kurulu görünüyor (sürüm %s).\n\n"
+                    "Yine de yeniden kurmak (güncellemek) ister misin?"
+                    % ver):
                 return
-        else:
+        elif state.get("service") is False:
             if not messagebox.askyesno(
                     APP_TITLE,
                     "Sanal kol oluşturmak için gereken ViGEmBus sürücüsü\n"
@@ -1310,11 +1494,28 @@ class FixerApp:
                 self._log("ViGEmBus kurulumu atlandı "
                           "(elle: github.com/nefarius/ViGEmBus/releases)")
                 return
+        else:
+            if manual:
+                self._log("ViGEmBus durumu okunamadı; elle kur: "
+                          "github.com/nefarius/ViGEmBus/releases")
+            return
         self._vigem_install_start()
 
     def _vigem_install_start(self):
         if self._vigem_busy:
             self._log("ViGEmBus kurulumu zaten sürüyor, bekleyin...")
+            return
+        stage = str(self.cfg.get("vigem_repair_stage") or "")
+        if stage == "cleanup_done" and not self._repair_rebooted():
+            messagebox.showinfo(
+                APP_TITLE,
+                "Önce bilgisayarı yeniden başlatmalısın.\n\n"
+                "Eski sürücü ancak yeniden başlatmadan sonra bellekten "
+                "tamamen kalkar; şimdi kurmak çakışmaya/mavi ekrana yol "
+                "açabilir.")
+            if messagebox.askyesno(APP_TITLE,
+                                   "Şimdi yeniden başlatayım mı?"):
+                self._restart_computer()
             return
         self._vigem_busy = True
         self._log("ViGEmBus: son sürüm sorgulanıyor...")
@@ -1323,8 +1524,8 @@ class FixerApp:
 
     def _vigem_install_worker(self):
         try:
-            import gamepad_fixer as gf
-            url = gf.vigem_setup_url()
+            info = vd.vigem_setup_info()
+            url = info.get("url")
             if not url:
                 raise RuntimeError("indirme adresi bulunamadı")
             fname = url.rsplit("/", 1)[-1]
@@ -1339,35 +1540,49 @@ class FixerApp:
                     state["last"] = pct - (pct % 25)
                     self._queue.put("ViGEmBus: indiriliyor %%%d" % pct)
 
-            gf.download_file(url, dest, progress=prog)
+            vd.download_file(url, dest, progress=prog)
+
+            # GÜVENLİK: eski/bozuk sürücü duruyorsa üzerine KURMA.
+            st = vd.vigem_driver_state()
+            if st.get("repair_needed"):
+                raise RuntimeError(
+                    "eski/bozuk ViGEmBus sürücüsü hâlâ kurulu; önce "
+                    "Araçlar > ViGEmBus'u onar ile temizleyin")
+            ver = vd.read_file_version(dest)
+            if ver and tuple(ver[:3]) < vd.VIGEM_MIN_VERSION:
+                raise RuntimeError(
+                    "indirilen kurulum eski görünüyor (%s)"
+                    % vd.version_text(ver))
+
             self._queue.put("ViGEmBus: indirildi; kurulum başlatılıyor "
                             "(yönetici izni istenecek)...")
-            ok, msg = gf.run_installer_elevated(
+            ok, msg = vd.run_installer_elevated(
                 dest, params="/exenoui /qn /norestart")
             if not ok:
                 self._queue.put("ViGEmBus: " + msg)
             else:
                 time.sleep(1.5)
-                if gf.vigem_driver_installed() is False:
+                if vd.vigem_driver_installed() is False:
                     self._queue.put("ViGEmBus: sessiz kurulum sonuçlanmadı; "
                                     "kurulum penceresi açılıyor "
                                     "(İleri/Kur ile tamamlayın)...")
-                    ok, msg = gf.run_installer_elevated(dest)
+                    ok, msg = vd.run_installer_elevated(dest)
                     if not ok:
                         self._queue.put("ViGEmBus: " + msg)
                     time.sleep(1.5)
-            st = gf.vigem_driver_installed()
-            if st is False:
+            st = vd.vigem_driver_state()
+            if st.get("service") is False:
                 time.sleep(2.0)
-                st = gf.vigem_driver_installed()
+                st = vd.vigem_driver_state()
             err = None if ok else msg
-            self._queue.put(("call", lambda: self._vigem_finish(st, err)))
+            self._queue.put(("call",
+                             lambda s=st, e=err: self._vigem_finish(s, e)))
         except Exception as exc:
             self._queue.put(("call",
                              lambda e=exc: self._vigem_finish(
-                                 None, str(e) or repr(e))))
+                                 {}, str(e) or repr(e))))
 
-    def _vigem_finish(self, installed, err):
+    def _vigem_finish(self, state, err):
         self._vigem_busy = False
         if err:
             self._log("ViGEmBus kurulum hatası: %s" % err)
@@ -1378,13 +1593,18 @@ class FixerApp:
                 "Elle kurmak için: github.com/nefarius/ViGEmBus/releases"
                 % err)
             return
+        state = state or {}
+        installed = state.get("service") is True
+        ver = state.get("version_text") or "bilinmiyor"
         if installed:
-            self._log("ViGEmBus sürücüsü kuruldu ✓ "
-                      "(artık Başlat ile kullanabilirsin)")
+            self._clear_repair_stage()
+            self._log("ViGEmBus sürücüsü kuruldu ✓ (sürüm %s)" % ver)
             messagebox.showinfo(
                 APP_TITLE,
-                "ViGEmBus kuruldu!\n\nArtık 'Başlat' (F5) ile "
-                "kullanmaya başlayabilirsin.")
+                "ViGEmBus kuruldu! (sürüm %s)\n\n"
+                "Artık 'Başlat' (F5) ile kullanmaya başlayabilirsin.\n"
+                "Sanal kol görünmüyorsa bilgisayarı bir kez yeniden "
+                "başlat." % ver)
         else:
             self._log("ViGEmBus: kurulum tamamlanmamış görünüyor.")
             messagebox.showwarning(

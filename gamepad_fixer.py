@@ -302,112 +302,22 @@ def norm_axis(v):
     return x
 
 
-# --- ViGEmBus surucu yardimcilari (eksikse otomatik kurulum icin) ---
-
-VIGEM_SERVICE_KEY = r"SYSTEM\CurrentControlSet\Services\ViGEmBus"
-VIGEM_API_LATEST = "https://api.github.com/repos/nefarius/ViGEmBus/releases/latest"
-
-
-def vigem_driver_installed():
-    """ViGEmBus surucu servisi kayitli mi? True/False; okunamazsa None."""
-    try:
-        import winreg
-    except ImportError:
-        return None
-    try:
-        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, VIGEM_SERVICE_KEY):
-            return True
-    except OSError:
-        return False
-
-
-def vigem_setup_url(timeout=15):
-    """ViGEmBus son surum kurulum (.exe) indirme adresini dondurur."""
-    import json as _json
-    import urllib.request as _ur
-    req = _ur.Request(VIGEM_API_LATEST, headers={"User-Agent": "GamepadFixer"})
-    with _ur.urlopen(req, timeout=timeout) as resp:
-        data = _json.loads(resp.read().decode("utf-8"))
-    for asset in data.get("assets", []):
-        name = (asset.get("name") or "").lower()
-        if name.endswith(".exe"):
-            return asset.get("browser_download_url")
-    return None
-
-
-def download_file(url, dest, timeout=60, progress=None):
-    """url adresini dest dosyasina indirir; progress(oran 0..1) cagrilir."""
-    import urllib.request as _ur
-    req = _ur.Request(url, headers={"User-Agent": "GamepadFixer"})
-    with _ur.urlopen(req, timeout=timeout) as resp:
-        total = int(resp.headers.get("Content-Length") or 0)
-        got = 0
-        last = -1
-        with open(dest, "wb") as f:
-            while True:
-                chunk = resp.read(65536)
-                if not chunk:
-                    break
-                f.write(chunk)
-                got += len(chunk)
-                if progress is not None and total > 0:
-                    pct = int(got * 100.0 / total)
-                    if pct != last:
-                        last = pct
-                        progress(got / float(total))
-    return dest
-
-
-class _ShellExecuteInfoW(ctypes.Structure):
-    _fields_ = (
-        ("cbSize", ctypes.c_uint32),
-        ("fMask", ctypes.c_uint32),
-        ("hwnd", ctypes.c_void_p),
-        ("lpVerb", ctypes.c_wchar_p),
-        ("lpFile", ctypes.c_wchar_p),
-        ("lpParameters", ctypes.c_wchar_p),
-        ("lpDirectory", ctypes.c_wchar_p),
-        ("nShow", ctypes.c_int),
-        ("hInstApp", ctypes.c_void_p),
-        ("lpIDList", ctypes.c_void_p),
-        ("lpClass", ctypes.c_wchar_p),
-        ("hkeyClass", ctypes.c_void_p),
-        ("dwHotKey", ctypes.c_uint32),
-        ("hIcon", ctypes.c_void_p),
-        ("hProcess", ctypes.c_void_p),
-    )
-
-
-def run_installer_elevated(path, params=None, timeout=900):
-    """Kurulum dosyasini yonetici izniyle calistirir, bitmesini bekler.
-    (True, aciklama) ya da (False, hata mesaji) dondurur."""
-    SEE_MASK_NOCLOSEPROCESS = 0x00000040
-    sei = _ShellExecuteInfoW()
-    sei.cbSize = ctypes.sizeof(sei)
-    sei.fMask = SEE_MASK_NOCLOSEPROCESS
-    sei.lpVerb = "runas"
-    sei.lpFile = str(path)
-    sei.lpParameters = params or None
-    sei.nShow = 1
-    shell32 = ctypes.windll.shell32
-    shell32.ShellExecuteExW.restype = ctypes.c_int
-    if not shell32.ShellExecuteExW(ctypes.byref(sei)):
-        err = ctypes.windll.kernel32.GetLastError()
-        if err == 1223:
-            return (False, "yonetici izni verilmedi (UAC iptal)")
-        return (False, "kurulum baslatilamadi (kod %d)" % err)
-    h = sei.hProcess
-    if not h:
-        return (False, "kurulum sureci izlenemedi")
-    try:
-        res = ctypes.windll.kernel32.WaitForSingleObject(h,
-                                                          int(timeout * 1000))
-    finally:
-        ctypes.windll.kernel32.CloseHandle(h)
-    if res == 0:
-        return (True, "kurulum tamamlandi")
-    return (True, "kurulum zaman asimi (pencere hala acik olabilir)")
-
+from vigem_driver import (  # noqa: F401  (geriye donuk uyumluluk)
+    VIGEM_SERVICE_KEY,
+    VIGEM_API_LATEST,
+    VIGEM_MIN_VERSION,
+    vigem_driver_installed,
+    system_boot_time,
+    read_file_version,
+    version_text,
+    vigem_sys_path,
+    vigem_driver_state,
+    vigem_cleanup_driver,
+    vigem_setup_info,
+    vigem_setup_url,
+    download_file,
+    run_installer_elevated,
+)
 
 # XInput buton bitleri -> vgamepad butonlari
 BUTTON_BITS = (
